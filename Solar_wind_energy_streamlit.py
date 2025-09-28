@@ -589,7 +589,7 @@ def main():
     if "Solar Energy" in energy_types:
         solar_capex = st.sidebar.number_input(
             "Solar CAPEX ($/kW)",
-            min_value=800.0,
+            min_value=300.0,
             max_value=2500.0,
             value=1200.0,
             step=50.0
@@ -597,7 +597,7 @@ def main():
     if "Wind Energy" in energy_types:
         wind_capex = st.sidebar.number_input(
             "Wind CAPEX ($/kW)",
-            min_value=1200.0,
+            min_value=800.0,
             max_value=2500.0,
             value=1800.0,
             step=50.0
@@ -1744,3 +1744,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
