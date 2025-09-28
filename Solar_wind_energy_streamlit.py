@@ -47,7 +47,25 @@ ARABIAN_CITIES = {
     "Yemen": {
         "Sanaa": {"lat": 15.323, "lon": 44.191},
         "Aden": {"lat": 12.848, "lon": 45.032},
-        "Al_Hudaydah": {"lat": 14.777, "lon": 42.977}
+        "Al_Hudaydah": {"lat": 14.777, "lon": 42.977},
+        "Sayun": {"lat": 15.967, "lon": 48.797}
+        #"Al_Hudaydah": {"lat": 14.777, "lon": 42.977}
+    },
+    "Palastine": {
+        "Gaza": {"lat": 31.506, "lon": 34.461},
+        "AlQuds": {"lat": 31.788, "lon": 35.206}
+    },
+    "Iraq": {
+        "Baghdad": {"lat": 33.305, "lon": 44.394},
+    },
+    "Syria": {
+        "Damascus": {"lat": 33.537, "lon": 36.339},
+        "Aleppo": {"lat": 36.197, "lon": 37.176}
+    },
+    
+    "Jordan": {
+        "Amman": {"lat": 31.954, "lon": 35.973},
+        "Ma'an": {"lat": 30.554, "lon": 36.764}
     }
 }
 
@@ -394,13 +412,12 @@ def calculate_enhanced_economics(energy_data, system_type, capacity,
     }
 
 def create_map_interface():
-    """Create an interactive and attractive map for location selection."""
-    # Center on Arabian Peninsula
+
+
+    """Create professional interactive map with enhanced features."""
     center_lat, center_lon = 23.5, 45.0
-    # Define bounds to restrict panning (covering the Arabian Peninsula)
-    bounds = [[12, 38], [30, 58]]  # [[south, west], [north, east]]
+    bounds = [[8, 38], [40, 58]]  # [[south, west], [north, east]]
     
-    # Create base map with restrictions
     m = folium.Map(
         location=[center_lat, center_lon],
         zoom_start=5,
@@ -409,131 +426,55 @@ def create_map_interface():
         tiles='CartoDB positron',
         attr='Map tiles by CartoDB, under CC BY 3.0. Data by OpenStreetMap, under ODbL.'
     )
+
+    # Add different map layers
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='© Esri',
+        name='Satellite',
+        overlay=False,
+        control=True,
+        zoom_start=5,
+        min_zoom=5,           # Prevent zooming out
+        max_bounds=True    # Enable bounds restriction
+    ).add_to(m)
     
-    # Apply the bounds to the map
+    # Create marker clusters for better organization
+    marker_cluster = MarkerCluster(name='Cities').add_to(m)
+        # Apply the bounds to the map
     m.fit_bounds(bounds)
     
-    # Use a MarkerCluster to handle many cities neatly
-    marker_cluster = MarkerCluster(name='Major Cities').add_to(m)
-    # Add cities from the ARABIAN_CITIES database
+    
+    # Add cities with enhanced information
     for country, cities in ARABIAN_CITIES.items():
         for city_name, coords in cities.items():
-            # Create a popup with city and country
-            popup_content = f"<strong>{city_name}</strong><br>{country}"
-            # Create a unique ID for this marker
-            marker_id = f"{city_name}_{country.replace(' ', '_')}"
-            # Add a marker with a custom icon and a unique ID
-            marker = folium.Marker(
+            # Enhanced popup with more information
+            popup_html = f"""
+            <div style="width: 200px;">
+                <h4>{city_name}</h4>
+                <p><strong>Country:</strong> {country}</p>
+                <p><strong>Coordinates:</strong><br>
+                   Lat: {coords['lat']:.4f}°<br>
+                   Lon: {coords['lon']:.4f}°</p>
+                <p><strong>Elevation:</strong> {coords.get('elevation', 'N/A')} m</p>
+            </div>
+            """
+            
+            folium.Marker(
                 location=[coords["lat"], coords["lon"]],
-                popup=folium.Popup(popup_content, max_width=300),
+                popup=folium.Popup(popup_html, max_width=250),
                 tooltip=f"{city_name}, {country}",
                 icon=folium.Icon(
-                    color='green',
-                    icon='info-sign',
-                    prefix='glyphicon'
+                    color='blue' if country == 'Saudi Arabia' else 'green',
+                    icon='info-sign'
                 )
-            )
-            # Add the marker to the cluster
-            marker.add_to(marker_cluster)
-            # IMPORTANT: Add the city info to the marker's properties so we can identify it when clicked
-            # We'll store the display name which matches the dropdown options
-            marker_display_name = f"{city_name}, {country}"
-            marker.add_child(folium.Element(f"""
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {{
-                        var marker = document.querySelector('[title="{city_name}, {country}"]');
-                        if (marker) {{
-                            marker.addEventListener('click', function() {{
-                                window.parent.postMessage({{
-                                    type: 'city_marker_click',
-                                    city: '{marker_display_name}'
-                                }}, '*');
-                            }});
-                        }}
-                    }});
-                </script>
-            """))
-    # Add a layer control
+            ).add_to(marker_cluster)
+    
+    # Add layer control
     folium.LayerControl().add_to(m)
+    
     return m
 
-def main():
-    st.title("🌞 Enhanced Arabian Peninsula Renewable Energy Assessment")
-    st.markdown("### Physics-Based Solar & Wind Energy Analysis with Interactive Map")
-    
-    # Initialize session state for selected city if not exists
-    if 'selected_city_from_map' not in st.session_state:
-        st.session_state.selected_city_from_map = None
-
-    # Sidebar for inputs
-    st.sidebar.header("🔧 Configuration")
-    
-    
-    # Location selection using map and city selector
-    st.sidebar.subheader("📍 Location Selection")
-    st.sidebar.markdown("Select a major city or click anywhere on the map:")
-    
-    # Create a dropdown for predefined cities
-    city_options = ["-- Select a City --"]
-    city_to_coords = {}
-    for country, cities in ARABIAN_CITIES.items():
-        for city_name in cities.keys():
-            display_name = f"{city_name}, {country}"
-            city_options.append(display_name)
-            city_to_coords[display_name] = {
-                "lat": cities[city_name]["lat"],
-                "lon": cities[city_name]["lon"],
-                "name": city_name,
-                "country": country
-            }
-    
-    # Create and display map
-    st.sidebar.markdown("Or, click on the map to select a custom location:")
-    map_data = create_map_interface()
-    map_result = st_folium(map_data, width="100%", height=600, key="location_map")
-    
-    # Check if a city marker was clicked (via session state)
-    selected_city = None
-    
-    # First, check if a city was selected from the map (via our custom mechanism)
-    if st.session_state.selected_city_from_map:
-        selected_city = st.session_state.selected_city_from_map
-        st.sidebar.success(f"Selected City from Map: {selected_city}")
-    else:
-        # If no city selected from map, use the dropdown
-        selected_city = st.sidebar.selectbox("Choose a City", city_options)
-    
-    # Determine selected location
-    if selected_city and selected_city != "-- Select a City --":
-        # Use the coordinates from the selected city
-        city_info = city_to_coords[selected_city]
-        selected_location = {
-            "lat": city_info["lat"],
-            "lon": city_info["lon"],
-            "name": city_info["name"],
-            "country": city_info["country"]
-        }
-        # Reset the session state after using it
-        st.session_state.selected_city_from_map = None
-    elif map_result["last_clicked"] and map_result["last_clicked"]["lat"]:
-        # Use coordinates from map click (not on a predefined city marker)
-        selected_location = {
-            "lat": map_result["last_clicked"]["lat"],
-            "lon": map_result["last_clicked"]["lng"],
-            "name": "Custom Location",
-            "country": "N/A"
-        }
-        st.sidebar.success(f"Selected Custom Location: {selected_location['lat']:.3f}, {selected_location['lon']:.3f}")
-    else:
-        # Default location
-        default_city = "Sanaa, Yemen"
-        selected_location = {
-            "lat": ARABIAN_CITIES["Yemen"]["Sanaa"]["lat"],
-            "lon": ARABIAN_CITIES["Yemen"]["Sanaa"]["lon"],
-            "name": "Sanaa",
-            "country": "Yemen"
-        }
-        st.sidebar.info(f"Default location selected: {default_city}")
 
 def main():
     st.title("🌞 Enhanced Arabian Peninsula Renewable Energy Assessment")
@@ -566,7 +507,7 @@ def main():
     # Create and display map
     st.sidebar.markdown("Or, click on the map to select a custom location:")
     map_data = create_map_interface()
-    map_result = st_folium(map_data, width="100%", height=600, key="location_map")
+    map_result = st_folium(map_data, width="100%", height=800, key="location_map")
     
     # Determine selected location
     if selected_city != "-- Select a City --":
